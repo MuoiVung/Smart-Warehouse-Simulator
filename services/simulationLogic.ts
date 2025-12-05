@@ -1,3 +1,4 @@
+
 import {
   COLS,
   ROWS,
@@ -254,12 +255,28 @@ export class SimulationCore {
             const pid = act.pid!;
             if (pid in this.state.warehouse) {
                 tempPicked = {};
-                for (const [item, qty] of Object.entries(currentDemand)) {
+                
+                // NEW LOGIC: Use specific picks from Action if available, otherwise fallback to greedy
+                const picksToProcess = act.specificPicks || currentDemand;
+
+                for (const [item, qtyWanted] of Object.entries(picksToProcess)) {
+                    // Even if specific pick says 10, we can only take what's in inventory
                     const avail = this.state.warehouse[pid][item] || 0;
+                    
                     if (avail > 0) {
-                        const take = Math.min(qty, avail);
-                        this.state.warehouse[pid][item] -= take;
-                        tempPicked[item] = take;
+                         // If explicit pick: take min(specificQty, avail)
+                         // If greedy (legacy): take min(demandQty, avail)
+                         const take = Math.min(qtyWanted, avail);
+                         
+                         this.state.warehouse[pid][item] -= take;
+                         tempPicked[item] = (tempPicked[item] || 0) + take;
+                         
+                         // Warn if specific pick failed full amount
+                         if (act.specificPicks && take < qtyWanted) {
+                             logVal(`⚠ P${pid}: Wanted ${qtyWanted} ${item}, found ${avail}`, "ERROR");
+                         }
+                    } else if (act.specificPicks) {
+                         logVal(`⚠ P${pid}: Missing ${item} (Wanted ${qtyWanted})`, "ERROR");
                     }
                 }
             }
@@ -275,17 +292,21 @@ export class SimulationCore {
             for (const [item, qty] of Object.entries(tempPicked)) {
                 if (item in currentDemand) {
                     currentDemand[item] -= qty;
-                    dropped.push(item);
-                    if (currentDemand[item] === 0) removes.push(item);
+                    dropped.push(`${item}:${qty}`);
+                    if (currentDemand[item] <= 0) removes.push(item);
                 }
             }
             removes.forEach(r => delete currentDemand[r]);
             tempPicked = {}; // Clear hand
-            if (dropped.length > 0) logVal(`Processed items from P${pid}`, "SUCCESS");
+            if (dropped.length > 0) logVal(`Processed P${pid}: ${dropped.join(', ')}`, "SUCCESS");
         }
         else if (act.t === 'END_ORD') {
             // End of Order Check
-            const missingItems = Object.keys(currentDemand);
+            // Filter out items with 0 or negative demand
+            const missingItems = Object.entries(currentDemand)
+                .filter(([_, qty]) => qty > 0)
+                .map(([i, q]) => `${i}:${q}`);
+
             const status = missingItems.length === 0 ? 'PASS' : 'FAIL';
             const missingText = missingItems.join(', ');
 
@@ -381,16 +402,21 @@ export class SimulationCore {
       case 'LIFT':
         this.state.carryingPod = act.pid!;
         this.log(`Lift Pod ${act.pid}`, "ACTION");
+        
         if (act.pid! in this.state.warehouse) {
           this.tempPicked = {};
-          // Take items
-          for (const [item, qty] of Object.entries(this.state.currDemand)) {
-            const avail = this.state.warehouse[act.pid!][item] || 0;
-            if (avail > 0) {
-              const take = Math.min(qty, avail);
-              this.state.warehouse[act.pid!][item] -= take;
-              this.tempPicked[item] = take;
-            }
+          
+          // NEW LOGIC: Use specific picks if available (Sim Mode)
+          const picksToProcess = act.specificPicks || this.state.currDemand;
+
+          for (const [item, qtyWanted] of Object.entries(picksToProcess)) {
+             const avail = this.state.warehouse[act.pid!][item] || 0;
+             if (avail > 0) {
+                 const take = Math.min(qtyWanted, avail);
+                 this.state.warehouse[act.pid!][item] -= take;
+                 // Add to tempPicked (hand)
+                 this.tempPicked[item] = (this.tempPicked[item] || 0) + take;
+             }
           }
         }
         this.actionQueue.shift();
@@ -411,11 +437,12 @@ export class SimulationCore {
         const dropped: string[] = [];
         const removes: string[] = [];
         
+        // Deduct from global order demand based on what was picked
         for (const [item, qty] of Object.entries(this.tempPicked)) {
           if (item in this.state.currDemand) {
             this.state.currDemand[item] -= qty;
-            dropped.push(item);
-            if (this.state.currDemand[item] === 0) {
+            dropped.push(`${item}:${qty}`);
+            if (this.state.currDemand[item] <= 0) {
               removes.push(item);
             }
           }
@@ -423,7 +450,7 @@ export class SimulationCore {
         removes.forEach(r => delete this.state.currDemand[r]);
 
         if (dropped.length > 0) {
-          this.log(`Pick: ${dropped.join(',')} (Dist+${tripDist})`, "SUCCESS");
+          this.log(`Pick: ${dropped.join(', ')} (Dist+${tripDist})`, "SUCCESS");
         }
         
         this.state.carryingPod = null;

@@ -1,3 +1,4 @@
+
 export interface Coord {
   x: number;
   y: number;
@@ -30,6 +31,7 @@ export interface Action {
   id?: number;
   pid?: number;
   d?: Demand;
+  specificPicks?: Demand; // New field: Explicit instructions on what to pick
 }
 
 export interface SimulationState {

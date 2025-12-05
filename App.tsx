@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
@@ -6,7 +7,7 @@ import { SimulationCanvas } from './components/SimulationCanvas';
 import { ControlPanel } from './components/ControlPanel';
 import { ValidationView } from './components/ValidationView';
 import { SimulationCore } from './services/simulationLogic';
-import { Action, WarehouseInventory, SimulationState, OrderData } from './types';
+import { Action, WarehouseInventory, SimulationState, OrderData, Demand } from './types';
 import { SCENARIO_2_CSV } from './constants';
 import clsx from 'clsx';
 
@@ -103,15 +104,52 @@ function App() {
              actions.push({ t: 'START', id: oid, d: {...ordersGt[oid]} });
              
              // Route parsing
+             // Format: "Pod1 (A:10, T:37), Pod4 (O:9, X:19), ..."
              const routeStr = String(row[2]);
-             const podsInRoute = routeStr.match(/\d+/g)?.map(Number) || [];
              
-             podsInRoute.forEach(pid => {
-               actions.push({ t: 'MOVE', pid });
-               actions.push({ t: 'LIFT', pid });
-               actions.push({ t: 'RETURN', pid });
-               actions.push({ t: 'PROCESS', pid });
-             });
+             // Regex to find segments like "Pod1 (A:10, T:37)"
+             // Matches "Pod" followed by digits, spaces, and parenthesized content
+             const podSegments = routeStr.match(/Pod\d+\s*\([^)]+\)/g) || [];
+
+             if (podSegments.length === 0) {
+                // Fallback for old format (just numbers)
+                const podsInRoute = routeStr.match(/\d+/g)?.map(Number) || [];
+                podsInRoute.forEach(pid => {
+                    actions.push({ t: 'MOVE', pid });
+                    actions.push({ t: 'LIFT', pid }); // No specific picks, greedy default
+                    actions.push({ t: 'RETURN', pid });
+                    actions.push({ t: 'PROCESS', pid });
+                });
+             } else {
+                 // Parse new format
+                 podSegments.forEach(segment => {
+                     // Extract Pod ID
+                     const pidMatch = segment.match(/Pod(\d+)/);
+                     if (!pidMatch) return;
+                     const pid = parseInt(pidMatch[1]);
+
+                     // Extract Items inside parens: "A:10, T:37"
+                     const contentMatch = segment.match(/\((.*?)\)/);
+                     const specificPicks: Demand = {};
+                     
+                     if (contentMatch && contentMatch[1]) {
+                         const itemsParts = contentMatch[1].split(',');
+                         itemsParts.forEach(part => {
+                             const [item, qtyStr] = part.split(':').map(s => s.trim());
+                             const qty = parseInt(qtyStr);
+                             if (item && !isNaN(qty)) {
+                                 specificPicks[item] = qty;
+                             }
+                         });
+                     }
+
+                     actions.push({ t: 'MOVE', pid });
+                     // Pass specific picks to LIFT action
+                     actions.push({ t: 'LIFT', pid, specificPicks }); 
+                     actions.push({ t: 'RETURN', pid });
+                     actions.push({ t: 'PROCESS', pid });
+                 });
+             }
              
              actions.push({ t: 'END_ORD' });
           }
