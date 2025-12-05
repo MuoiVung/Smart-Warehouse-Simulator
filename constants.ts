@@ -5,35 +5,33 @@ export const SCREEN_W = 1600;
 export const SCREEN_H = 760; // Height of the simulation container
 
 // Logical Dimensions (Actual resolution of the simulation map)
-// Optimized to create a tighter bounding box around the arc, increasing the effective zoom level
-export const MAP_LOGICAL_WIDTH = 2000;
-export const MAP_LOGICAL_HEIGHT = 1440;
+export const MAP_LOGICAL_WIDTH = 1400;
+export const MAP_LOGICAL_HEIGHT = 900;
 
 export const UI_PANEL_WIDTH = 400;
 
 // Grid Configuration
-export const GRID_SIZE = 80; // Significantly larger pods for readability
+export const GRID_SIZE = 70; // Good size for grid layout
 
 // Calculate Grid Dimensions based on LOGICAL size
-export const COLS = Math.floor(MAP_LOGICAL_WIDTH / GRID_SIZE); // ~25 cols
-export const ROWS = Math.floor(MAP_LOGICAL_HEIGHT / GRID_SIZE); // ~18 rows
+export const COLS = Math.floor(MAP_LOGICAL_WIDTH / GRID_SIZE); 
+export const ROWS = Math.floor(MAP_LOGICAL_HEIGHT / GRID_SIZE);
 
 // Locations
-// Station placed on the right side, vertically centered
-export const STATION_GRID_X = COLS - 3; 
-export const STATION_GRID_Y = Math.floor(ROWS / 2);
-export const STATION_COORD: Coord = { x: STATION_GRID_X, y: STATION_GRID_Y };
-export const PICKING_AREA_COORD: Coord = { x: STATION_GRID_X - 1, y: STATION_GRID_Y };
+// Station placed on the right side, aligned with the top blocks
+// Assuming 4 blocks, the right-most block ends around x=8. Station at x=10.
+export const STATION_COORD: Coord = { x: 10, y: 1 };
+export const PICKING_AREA_COORD: Coord = { x: 9, y: 1 };
 
 // Colors
 export const COLORS = {
   BG: '#1e1e23',
   PANEL_BG: '#2d2d32',
-  POD_NORMAL: '#00796b',
-  POD_LIFTED: '#ffb300',
-  POD_BORDER: '#ffffff',
-  STATION: '#e91e63',
-  PICK_AREA: '#2196f3',
+  POD_NORMAL: '#2563eb', // Blue like the image
+  POD_LIFTED: '#60a5fa', // Lighter blue when lifted
+  POD_BORDER: '#1e3a8a', // Darker blue border
+  STATION: '#ea580c',    // Orange
+  PICK_AREA: '#facc15',  // Yellow
   ROBOT: '#64ffda',
   TEXT_WHITE: '#f0f0f0',
   TEXT_HIGHLIGHT: '#00ffff',

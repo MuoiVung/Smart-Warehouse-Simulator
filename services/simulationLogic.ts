@@ -24,67 +24,61 @@ import Papa from 'papaparse';
 
 // --- Helper Functions ---
 
-export function generateArcLayout(): Record<number, Coord> {
+export function generateGridLayout(): Record<number, Coord> {
   const layout: Record<number, Coord> = {};
-  const centerX = STATION_COORD.x;
-  const centerY = STATION_COORD.y;
-
-  // Compact rings to save space while maintaining order.
-  // Radii: 3, 5, 7, 9, 11, 13 (Grid Units)
-  const groups = [
-    { pods: [1], radius: 3 },                        // Tier 1: Dist 22
-    { pods: [2, 3, 4, 5, 6], radius: 5 },            // Tier 2: Dist 26
-    { pods: [12], radius: 7 },                       // Tier 3: Dist 30
-    { pods: [7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18], radius: 9 }, // Tier 4: Dist 34
-    { pods: [24], radius: 11 },                      // Tier 5: Dist 42
-    { pods: [19, 20, 21, 22, 23], radius: 13 }       // Tier 6: Dist 46
+  
+  // Define 4 Blocks of slots
+  // Block format: 2 rows x 3 cols
+  const blocks = [
+    { startX: 1, startY: 1 }, // Top-Left
+    { startX: 5, startY: 1 }, // Top-Right (Closest to Station at x=10)
+    { startX: 1, startY: 4 }, // Bottom-Left
+    { startX: 5, startY: 4 }, // Bottom-Right
   ];
 
-  // Narrower angle spread (140 to 220) to reduce vertical height requirements,
-  // allowing the map to be scaled larger on landscape screens.
-  const startAngleDeg = 140;
-  const endAngleDeg = 220;
+  const availableSlots: { x: number, y: number, dist: number }[] = [];
 
-  groups.forEach(group => {
-      const count = group.pods.length;
-      const radius = group.radius;
-      
-      const angleStep = count > 1 
-          ? (endAngleDeg - startAngleDeg) / (count - 1)
-          : 0;
+  // Generate all 24 slots (4 blocks * 6 slots)
+  blocks.forEach(block => {
+    for (let r = 0; r < 2; r++) {
+      for (let c = 0; c < 3; c++) {
+        const x = block.startX + c;
+        const y = block.startY + r;
+        
+        // Calculate Distance to Picking Area for sorting
+        // We use Euclidean distance to determine visual proximity
+        const dx = (x - PICKING_AREA_COORD.x);
+        const dy = (y - PICKING_AREA_COORD.y);
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        
+        availableSlots.push({ x, y, dist });
+      }
+    }
+  });
 
-      group.pods.forEach((pid, idx) => {
-          // Angle in degrees
-          const angleDeg = count > 1 
-              ? startAngleDeg + idx * angleStep 
-              : 180; // Center if single
-          
-          const angleRad = angleDeg * (Math.PI / 180);
+  // Sort slots: Closest to Picking Station first
+  availableSlots.sort((a, b) => a.dist - b.dist);
 
-          let gx = Math.floor(centerX + radius * Math.cos(angleRad));
-          let gy = Math.floor(centerY + radius * Math.sin(angleRad));
+  // Get all Pod IDs and sort them by Logical Distance (P1 closest)
+  // If distances are equal, sort by ID to keep order (P2, P3...)
+  const podIds = Object.keys(POD_DISTANCES_MAP).map(Number).sort((a, b) => {
+    const distA = POD_DISTANCES_MAP[a];
+    const distB = POD_DISTANCES_MAP[b];
+    if (distA !== distB) return distA - distB;
+    return a - b;
+  });
 
-          // Bounds check
-          gx = Math.max(0, Math.min(gx, COLS - 1));
-          gy = Math.max(0, Math.min(gy, ROWS - 1));
-
-          // Simple collision check to avoid exact overlap
-          while (
-            Object.values(layout).some(c => c.x === gx && c.y === gy) ||
-            (gx === PICKING_AREA_COORD.x && gy === PICKING_AREA_COORD.y) ||
-            (gx === STATION_COORD.x && gy === STATION_COORD.y)
-          ) {
-            gx -= 1; 
-          }
-
-          layout[pid] = { x: gx, y: gy };
-      });
+  // Assign Pods to Slots
+  podIds.forEach((pid, idx) => {
+    if (idx < availableSlots.length) {
+      layout[pid] = { x: availableSlots[idx].x, y: availableSlots[idx].y };
+    }
   });
 
   return layout;
 }
 
-const LAYOUT_COORDS = generateArcLayout();
+const LAYOUT_COORDS = generateGridLayout();
 
 export function findPathBFS(start: Coord, target: Coord, obstacles: Set<string>): Coord[] {
   if (start.x === target.x && start.y === target.y) return [];

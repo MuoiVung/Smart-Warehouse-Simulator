@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { SimulationCore, generateArcLayout } from '../services/simulationLogic';
+import { SimulationCore, generateGridLayout } from '../services/simulationLogic';
 import {
   GRID_SIZE,
   MAP_LOGICAL_WIDTH,
@@ -16,7 +16,8 @@ interface SimulationCanvasProps {
   onUpdate: () => void;
 }
 
-const LAYOUT = generateArcLayout();
+// Use Grid Layout now
+const LAYOUT = generateGridLayout();
 
 export const SimulationCanvas: React.FC<SimulationCanvasProps> = ({ engine, speed, isPlaying, onUpdate }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -53,26 +54,29 @@ export const SimulationCanvas: React.FC<SimulationCanvasProps> = ({ engine, spee
     ctx.fillStyle = COLORS.BG;
     ctx.fillRect(0, 0, MAP_LOGICAL_WIDTH, MAP_LOGICAL_HEIGHT);
 
-    // Draw Station
+    // Draw Picking Area (Yellow Box)
+    const px = PICKING_AREA_COORD.x * GRID_SIZE;
+    const py = PICKING_AREA_COORD.y * GRID_SIZE;
+    ctx.fillStyle = COLORS.PICK_AREA; // Yellow
+    ctx.beginPath();
+    ctx.roundRect(px, py, GRID_SIZE, GRID_SIZE, 8);
+    ctx.fill();
+    ctx.fillStyle = '#000000';
+    ctx.font = "bold 16px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText("Pa", px + GRID_SIZE/2, py + GRID_SIZE/2 + 6);
+
+    // Draw Station (Orange Box)
     const sx = STATION_COORD.x * GRID_SIZE;
     const sy = STATION_COORD.y * GRID_SIZE;
-    ctx.fillStyle = COLORS.STATION;
+    ctx.fillStyle = COLORS.STATION; // Orange
     ctx.beginPath();
     ctx.roundRect(sx, sy, GRID_SIZE, GRID_SIZE, 8);
     ctx.fill();
-    ctx.fillStyle = COLORS.TEXT_WHITE;
-    ctx.font = "bold 18px Arial"; // Larger
+    ctx.fillStyle = '#000000';
+    ctx.font = "bold 16px Arial";
     ctx.textAlign = "center";
-    ctx.fillText("STATION", sx + GRID_SIZE/2, sy + 45);
-
-    // Draw Picking Area
-    const px = PICKING_AREA_COORD.x * GRID_SIZE;
-    const py = PICKING_AREA_COORD.y * GRID_SIZE;
-    ctx.strokeStyle = COLORS.PICK_AREA;
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.roundRect(px, py, GRID_SIZE, GRID_SIZE, 8);
-    ctx.stroke();
+    ctx.fillText("Ps", sx + GRID_SIZE/2, sy + GRID_SIZE/2 + 6);
 
     // Draw Pods
     Object.entries(LAYOUT).forEach(([idStr, coord]) => {
@@ -91,7 +95,7 @@ export const SimulationCanvas: React.FC<SimulationCanvasProps> = ({ engine, spee
          ctx.roundRect(rectX, rectY, rectSize, rectSize, 8);
          ctx.fill();
       } else {
-        ctx.fillStyle = COLORS.POD_NORMAL;
+        ctx.fillStyle = COLORS.POD_NORMAL; // Blue
         ctx.beginPath();
         ctx.roundRect(rectX, rectY, rectSize, rectSize, 8);
         ctx.fill();
@@ -100,27 +104,27 @@ export const SimulationCanvas: React.FC<SimulationCanvasProps> = ({ engine, spee
         ctx.stroke();
       }
 
-      // Pod Label (Top Left)
+      // Pod Label (Top Center now, clearer)
       ctx.fillStyle = COLORS.TEXT_WHITE;
-      ctx.textAlign = "left";
-      ctx.font = "bold 20px Arial"; // Big label
-      ctx.fillText(`P${pid}`, cx + 8, cy + 24);
+      ctx.textAlign = "center";
+      ctx.font = "bold 20px Arial"; 
+      ctx.fillText(`${pid}`, cx + GRID_SIZE/2, cy + 22);
 
-      // Inventory Preview (Larger text, more lines)
+      // Inventory Preview
       const inv = sim.state.warehouse[pid] || {};
-      let yOffset = 45;
+      let yOffset = 42;
       let count = 0;
       for (const [item, qty] of Object.entries(inv)) {
-        if (count >= 3) { // Show up to 3 items
+        if (count >= 2) { // Show up to 2 items clearly in this grid size
           ctx.fillStyle = "#cccccc";
           ctx.font = "bold 12px Arial";
-          ctx.fillText("...", cx + 8, cy + yOffset - 3);
+          ctx.fillText("...", cx + GRID_SIZE/2, cy + yOffset);
           break;
         }
         ctx.fillStyle = "#e2e8f0";
-        ctx.font = "bold 13px Arial";
-        ctx.fillText(`${item}:${qty}`, cx + 8, cy + yOffset);
-        yOffset += 15;
+        ctx.font = "bold 12px Arial";
+        ctx.fillText(`${item}:${qty}`, cx + GRID_SIZE/2, cy + yOffset);
+        yOffset += 14;
         count++;
       }
     });
@@ -130,8 +134,7 @@ export const SimulationCanvas: React.FC<SimulationCanvasProps> = ({ engine, spee
     const ry = sim.pixelPos.y;
     ctx.fillStyle = COLORS.ROBOT;
     ctx.beginPath();
-    // Larger robot circle
-    ctx.arc(rx + GRID_SIZE/2, ry + GRID_SIZE/2, 20, 0, 2 * Math.PI);
+    ctx.arc(rx + GRID_SIZE/2, ry + GRID_SIZE/2, 18, 0, 2 * Math.PI);
     ctx.fill();
     
     // Robot glow/stroke
