@@ -42,12 +42,22 @@ export interface SimulationState {
   warehouse: WarehouseInventory;
 }
 
+export interface ReportOverviewRow {
+  Order: number;
+  Status: 'PASS' | 'FAIL';
+  Missing: string;
+  Distance: number;
+}
+
+export interface InventorySnapshotRow {
+  Step: string;
+  [podLabel: string]: string; // "Pod 1": "A:100, B:20"
+}
+
 export interface ValidationResult {
   totalDist: number;
   logs: LogEntry[];
   isValid: boolean;
-  unfulfilledOrders: {
-    orderId: number;
-    remaining: Demand;
-  }[];
+  reportOverview: ReportOverviewRow[];
+  inventorySnapshots: InventorySnapshotRow[];
 }

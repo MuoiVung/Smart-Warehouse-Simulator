@@ -13,14 +13,14 @@ interface SimulationCanvasProps {
   engine: SimulationCore | null;
   speed: number;
   isPlaying: boolean;
-  onUpdate: () => void; // Trigger UI update
+  onUpdate: () => void;
 }
 
 const LAYOUT = generateArcLayout();
 
 export const SimulationCanvas: React.FC<SimulationCanvasProps> = ({ engine, speed, isPlaying, onUpdate }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const reqIdRef = useRef<number>();
+  const reqIdRef = useRef<number | null>(null);
 
   const draw = (ctx: CanvasRenderingContext2D, sim: SimulationCore) => {
     // Clear
@@ -32,19 +32,19 @@ export const SimulationCanvas: React.FC<SimulationCanvasProps> = ({ engine, spee
     const sy = STATION_COORD.y * GRID_SIZE;
     ctx.fillStyle = COLORS.STATION;
     ctx.beginPath();
-    ctx.roundRect(sx, sy, GRID_SIZE, GRID_SIZE, 8);
+    ctx.roundRect(sx, sy, GRID_SIZE, GRID_SIZE, 6);
     ctx.fill();
     ctx.fillStyle = COLORS.TEXT_WHITE;
-    ctx.font = "bold 14px Arial";
+    ctx.font = "bold 11px Arial";
     ctx.fillText("STATION", sx + 2, sy + 20);
 
     // Draw Picking Area
     const px = PICKING_AREA_COORD.x * GRID_SIZE;
     const py = PICKING_AREA_COORD.y * GRID_SIZE;
     ctx.strokeStyle = COLORS.PICK_AREA;
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.roundRect(px, py, GRID_SIZE, GRID_SIZE, 8);
+    ctx.roundRect(px, py, GRID_SIZE, GRID_SIZE, 6);
     ctx.stroke();
 
     // Draw Pods
@@ -59,14 +59,14 @@ export const SimulationCanvas: React.FC<SimulationCanvasProps> = ({ engine, spee
       const rectSize = GRID_SIZE - 4;
 
       if (isCarried) {
-         ctx.fillStyle = COLORS.POD_LIFTED + "80"; // Hex with alpha (roughly 50%)
+         ctx.fillStyle = COLORS.POD_LIFTED + "80"; // Hex with alpha
          ctx.beginPath();
-         ctx.roundRect(rectX, rectY, rectSize, rectSize, 6);
+         ctx.roundRect(rectX, rectY, rectSize, rectSize, 4);
          ctx.fill();
       } else {
         ctx.fillStyle = COLORS.POD_NORMAL;
         ctx.beginPath();
-        ctx.roundRect(rectX, rectY, rectSize, rectSize, 6);
+        ctx.roundRect(rectX, rectY, rectSize, rectSize, 4);
         ctx.fill();
         ctx.strokeStyle = COLORS.POD_BORDER;
         ctx.lineWidth = 1;
@@ -75,24 +75,24 @@ export const SimulationCanvas: React.FC<SimulationCanvasProps> = ({ engine, spee
 
       // Pod Label
       ctx.fillStyle = COLORS.TEXT_WHITE;
-      ctx.font = "bold 14px Arial";
-      ctx.fillText(`P${pid}`, cx + 5, cy + 15);
+      ctx.font = "bold 12px Arial";
+      ctx.fillText(`P${pid}`, cx + 4, cy + 14);
 
       // Inventory Preview
       const inv = sim.state.warehouse[pid] || {};
-      let yOffset = 30;
+      let yOffset = 24;
       let count = 0;
       for (const [item, qty] of Object.entries(inv)) {
-        if (count >= 3) {
+        if (count >= 2) {
           ctx.fillStyle = "#c8c8c8";
-          ctx.font = "10px Arial";
-          ctx.fillText("...", cx + 5, cy + yOffset);
+          ctx.font = "9px Arial";
+          ctx.fillText("...", cx + 4, cy + yOffset);
           break;
         }
         ctx.fillStyle = "#dcdee0";
-        ctx.font = "10px Arial";
-        ctx.fillText(`${item}:${qty}`, cx + 5, cy + yOffset);
-        yOffset += 11;
+        ctx.font = "9px Arial";
+        ctx.fillText(`${item}:${qty}`, cx + 4, cy + yOffset);
+        yOffset += 10;
         count++;
       }
     });
@@ -102,8 +102,13 @@ export const SimulationCanvas: React.FC<SimulationCanvasProps> = ({ engine, spee
     const ry = sim.pixelPos.y;
     ctx.fillStyle = COLORS.ROBOT;
     ctx.beginPath();
-    ctx.arc(rx + GRID_SIZE/2, ry + GRID_SIZE/2, 10, 0, 2 * Math.PI);
+    ctx.arc(rx + GRID_SIZE/2, ry + GRID_SIZE/2, 8, 0, 2 * Math.PI);
     ctx.fill();
+    // Robot glow
+    ctx.shadowColor = COLORS.ROBOT;
+    ctx.shadowBlur = 10;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
   };
 
   useEffect(() => {
@@ -119,11 +124,7 @@ export const SimulationCanvas: React.FC<SimulationCanvasProps> = ({ engine, spee
       if (isPlaying) {
         const active = engine.update(speed);
         if (active) {
-            onUpdate(); // Sync React UI with Engine state occasionally? 
-            // Ideally we don't spam React state updates every frame.
-            // But for progress bar / distance update we might need to.
-            // Let's rely on the parent updating via `useRef` reading if needed, 
-            // or throttle this. For smooth UI, we'll call it.
+            onUpdate();
         }
       }
       draw(ctx, engine);
@@ -137,22 +138,21 @@ export const SimulationCanvas: React.FC<SimulationCanvasProps> = ({ engine, spee
     };
   }, [engine, isPlaying, speed]);
 
-  // Separate Effect to trigger draw on props change even if paused
   useEffect(() => {
     const canvas = canvasRef.current;
     if (canvas && engine) {
         const ctx = canvas.getContext('2d');
         if (ctx) draw(ctx, engine);
     }
-  }, [engine]); // Redraw if engine is reset
+  }, [engine]);
 
   return (
-    <div className="relative border-r border-gray-700 h-full bg-[#1e1e23] overflow-hidden">
+    <div className="relative border-r border-gray-700 h-full bg-[#1e1e23] flex items-center justify-center">
       <canvas 
         ref={canvasRef} 
         width={MAP_WIDTH} 
         height={SCREEN_H}
-        className="block"
+        className="block shadow-lg bg-[#1a1a1e]"
       />
     </div>
   );

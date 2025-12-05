@@ -2,8 +2,11 @@ import { Coord } from './types';
 
 // Dimensions
 export const SCREEN_W = 1600;
-export const SCREEN_H = 900;
-export const GRID_SIZE = 60;
+// Reduced height to account for header (64px) + tabs (40px) + margins within a 900px viewport
+export const SCREEN_H = 765; 
+// Reduced grid size to allow more rows/cols within the canvas, ensuring the arc layout fits
+export const GRID_SIZE = 45; 
+
 export const UI_PANEL_WIDTH = 400;
 export const MAP_WIDTH = SCREEN_W - UI_PANEL_WIDTH;
 
@@ -11,7 +14,8 @@ export const COLS = Math.floor(MAP_WIDTH / GRID_SIZE);
 export const ROWS = Math.floor(SCREEN_H / GRID_SIZE);
 
 // Locations
-export const STATION_GRID_X = COLS - 3;
+// Station placed on the right side
+export const STATION_GRID_X = COLS - 4; 
 export const STATION_GRID_Y = Math.floor(ROWS / 2);
 export const STATION_COORD: Coord = { x: STATION_GRID_X, y: STATION_GRID_Y };
 export const PICKING_AREA_COORD: Coord = { x: STATION_GRID_X - 1, y: STATION_GRID_Y };

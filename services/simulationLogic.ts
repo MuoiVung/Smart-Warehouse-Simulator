@@ -15,7 +15,9 @@ import {
   OrderData,
   SimulationState,
   ValidationResult,
-  WarehouseInventory
+  WarehouseInventory,
+  ReportOverviewRow,
+  InventorySnapshotRow
 } from '../types';
 import Papa from 'papaparse';
 
@@ -184,35 +186,126 @@ export class SimulationCore {
     this.state.logs.push({ msg, type, timestamp: Date.now() });
   }
 
-  // Used for validation mode (Headless)
-  public runValidation(): ValidationResult {
-    // Fast forward through queue
-    while (!this.state.finished && this.actionQueue.length > 0) {
-      this.processNextAction(true);
+  // --- REPORT GENERATION HELPERS ---
+
+  private getSnapshot(warehouse: WarehouseInventory, stepName: string): InventorySnapshotRow {
+    const row: InventorySnapshotRow = { Step: stepName };
+    for (let pid = 1; pid <= 24; pid++) {
+        const items = warehouse[pid] || {};
+        const parts: string[] = [];
+        Object.entries(items).forEach(([k, v]) => {
+            if (v > 0) parts.push(`${k}:${v}`);
+        });
+        row[`Pod ${pid}`] = parts.length > 0 ? parts.join('\n') : '(Empty)';
     }
+    return row;
+  }
+
+  // Used for validation mode (Headless)
+  public runDetailedValidation(): ValidationResult {
+    const snapshots: InventorySnapshotRow[] = [];
+    const reportOverview: ReportOverviewRow[] = [];
+    const validationLogs: LogEntry[] = [];
+    let totalDist = 0;
+    let isOverallValid = true;
+
+    // 1. Initial Snapshot
+    snapshots.push(this.getSnapshot(this.state.warehouse, "Start (Initial)"));
+
+    // 2. Iterate Queue to process orders
+    // We need to simulate the flow: START -> MOVES/LIFTS -> PROCESS -> END
+    // We will group actions by Order implicitly by following the queue
     
-    // Check fulfilment
-    const unfulfilled = [];
-    // We check fulfilment by iterating remaining demands in ordersGt?
-    // Actually the logic maintains currDemand. If process ends and currDemand not empty for an order...
-    // But since the loop processes per order, we can't easily check previous orders unless we store them.
-    // The Python logic updates `curr_demand` in place.
-    // Ideally, for validation, we'd want to check if all orders in `ordersGt` were met.
-    // However, following the prompt's request: "Valid if all orders have empty curr_demand after processing"
-    // Since we process sequentially, we assume validation logic follows the execution flow.
-    // A better check: At the end of simulation, `currDemand` should be empty for the last order? 
-    // No, `currDemand` is reset on START.
+    // Temp state for loop
+    let currentOrderValid = true;
+    let currentOrderDist = 0;
+    let currentOrderId = -1;
+    let currentDemand: Demand = {};
+    let tempPicked: Demand = {};
     
-    // Let's implement a robust check: track unfulfilled items across all orders.
-    // We need to simulate the START action to know which order we are on.
-    
-    // Re-running full simulation from scratch for validation is best.
-    
+    // Helper to log within validation context
+    const logVal = (msg: string, type: LogEntry['type']) => {
+        validationLogs.push({ msg, type, timestamp: Date.now() });
+    };
+
+    // Deep copy action queue to not consume the main one if we reused this instance
+    const queue = JSON.parse(JSON.stringify(this.actionQueue)) as Action[];
+
+    while (queue.length > 0) {
+        const act = queue.shift()!;
+
+        if (act.t === 'START') {
+            currentOrderId = act.id!;
+            currentDemand = { ...act.d }; // Clone demand
+            currentOrderDist = 0;
+            currentOrderValid = true;
+            logVal(`► START ORD ${currentOrderId}`, "HEAD");
+        }
+        else if (act.t === 'LIFT') {
+            const pid = act.pid!;
+            if (pid in this.state.warehouse) {
+                tempPicked = {};
+                for (const [item, qty] of Object.entries(currentDemand)) {
+                    const avail = this.state.warehouse[pid][item] || 0;
+                    if (avail > 0) {
+                        const take = Math.min(qty, avail);
+                        this.state.warehouse[pid][item] -= take;
+                        tempPicked[item] = take;
+                    }
+                }
+            }
+        }
+        else if (act.t === 'PROCESS') {
+            const pid = act.pid!;
+            const d = POD_DISTANCES_MAP[pid] || 0;
+            currentOrderDist += d;
+            totalDist += d;
+
+            const dropped: string[] = [];
+            const removes: string[] = [];
+            for (const [item, qty] of Object.entries(tempPicked)) {
+                if (item in currentDemand) {
+                    currentDemand[item] -= qty;
+                    dropped.push(item);
+                    if (currentDemand[item] === 0) removes.push(item);
+                }
+            }
+            removes.forEach(r => delete currentDemand[r]);
+            tempPicked = {}; // Clear hand
+            if (dropped.length > 0) logVal(`Processed items from P${pid}`, "SUCCESS");
+        }
+        else if (act.t === 'END_ORD') {
+            // End of Order Check
+            const missingItems = Object.keys(currentDemand);
+            const status = missingItems.length === 0 ? 'PASS' : 'FAIL';
+            const missingText = missingItems.join(', ');
+
+            if (status === 'FAIL') {
+                isOverallValid = false;
+                logVal(`⚠ ORD ${currentOrderId} FAILED. Missing: ${missingText}`, "ERROR");
+            } else {
+                logVal(`✓ ORD ${currentOrderId} COMPLETE`, "HEAD");
+            }
+
+            // Record Overview
+            reportOverview.push({
+                Order: currentOrderId,
+                Status: status,
+                Missing: missingText,
+                Distance: currentOrderDist
+            });
+
+            // Record Snapshot
+            snapshots.push(this.getSnapshot(this.state.warehouse, `After Order ${currentOrderId}`));
+        }
+    }
+
     return {
-      totalDist: this.state.totalDist,
-      logs: this.state.logs,
-      isValid: true, // Simplified assumption based on logic flow
-      unfulfilledOrders: unfulfilled
+      totalDist,
+      logs: validationLogs,
+      isValid: isOverallValid,
+      reportOverview,
+      inventorySnapshots: snapshots
     };
   }
 

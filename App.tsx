@@ -77,14 +77,11 @@ function App() {
         }
       });
 
-      // 2. Parse Orders GT (Hardcoded in constants, parsed in SimulationCore, but we need Actions from Sheet 1)
-      // Note: In Python code, Sheet 1 is 'Summary' -> contains Route.
-      // We need to parse Sheet 1 for the Action Queue.
-      
+      // 2. Parse Orders GT
       const wsSum = wb.Sheets[wb.SheetNames[1]];
       const dataSum = XLSX.utils.sheet_to_json<any>(wsSum, { header: 1 });
       
-      // Parse Scenario CSV for lookup (Needed to build START actions correctly)
+      // Parse Scenario CSV for lookup
       const results = Papa.parse(SCENARIO_2_CSV, { header: true, skipEmptyLines: true });
       const ordersGt: OrderData = {};
       (results.data as any[]).forEach((row) => {
@@ -153,7 +150,6 @@ function App() {
   // Called by Canvas every frame or so to sync UI
   const handleSimUpdate = () => {
     if (engineRef.current) {
-        // Force re-render of panel stats
         setUiState({...engineRef.current.state}); 
         if (engineRef.current.state.finished) {
             setIsPlaying(false);
@@ -164,16 +160,16 @@ function App() {
   return (
     <div className="h-screen w-screen flex flex-col bg-slate-900 overflow-hidden">
       {/* --- Top Bar --- */}
-      <header className="h-16 bg-slate-800 border-b border-slate-700 flex items-center justify-between px-6 shrink-0 z-10">
+      <header className="h-16 bg-slate-800 border-b border-slate-700 flex items-center justify-between px-6 shrink-0 z-10 shadow-md">
          <div className="flex items-center gap-3">
             <Layout className="text-cyan-400" />
-            <h1 className="text-white font-bold text-lg">Smart Warehouse Simulator</h1>
+            <h1 className="text-white font-bold text-lg tracking-wide">Smart Warehouse Simulator</h1>
          </div>
 
          <div className="flex items-center gap-6">
             {/* File Input */}
             <div className="flex items-center gap-2">
-               <label className="flex items-center gap-2 cursor-pointer bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded text-sm font-medium transition-colors">
+               <label className="flex items-center gap-2 cursor-pointer bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded text-sm font-medium transition-colors border border-slate-600">
                   <Upload size={16} />
                   {fileName ? 'Change File' : 'Upload Excel'}
                   <input type="file" accept=".xlsx" className="hidden" onChange={handleFileUpload} />
@@ -248,7 +244,7 @@ function App() {
 
          {activeTab === 'sim' ? (
              <>
-               <div className="flex-1 h-full relative">
+               <div className="flex-1 h-full relative flex flex-col items-center justify-center bg-[#1e1e23]">
                   <SimulationCanvas 
                     engine={engineRef.current} 
                     speed={speed} 
@@ -257,11 +253,11 @@ function App() {
                   />
                   
                   {uiState?.finished && (
-                     <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-black/80 p-8 rounded-xl border border-green-500 text-center backdrop-blur-sm">
+                     <div className="absolute z-30 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-slate-900/90 p-8 rounded-xl border border-green-500 text-center backdrop-blur-sm shadow-2xl">
                         <CheckCircle size={48} className="text-green-500 mx-auto mb-4" />
                         <h2 className="text-3xl font-bold text-white mb-2">Simulation Complete</h2>
-                        <p className="text-gray-300">Total Distance: <span className="text-cyan-400 font-mono">{uiState.totalDist.toFixed(0)}</span></p>
-                        <button onClick={handleStop} className="mt-6 px-6 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded font-bold">Reset</button>
+                        <p className="text-gray-300">Total Distance: <span className="text-cyan-400 font-mono text-xl">{uiState.totalDist.toFixed(0)}</span></p>
+                        <button onClick={handleStop} className="mt-6 px-6 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded font-bold transition-colors">Reset</button>
                      </div>
                   )}
                </div>
