@@ -2,10 +2,10 @@ import { Coord } from './types';
 
 // Dimensions
 export const SCREEN_W = 1600;
-// Reduced height to account for header (64px) + tabs (40px) + margins within a 900px viewport
-export const SCREEN_H = 765; 
-// Reduced grid size to allow more rows/cols within the canvas, ensuring the arc layout fits
-export const GRID_SIZE = 45; 
+// Reduced height to account for header (64px) + tabs (40px) + margins
+export const SCREEN_H = 760; 
+// Reduced grid size (38px) allows ~20 rows (760/38), giving enough vertical margin for the Arc layout
+export const GRID_SIZE = 38; 
 
 export const UI_PANEL_WIDTH = 400;
 export const MAP_WIDTH = SCREEN_W - UI_PANEL_WIDTH;

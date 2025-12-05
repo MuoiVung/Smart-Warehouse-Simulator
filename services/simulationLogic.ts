@@ -167,8 +167,10 @@ export class SimulationCore {
   }
 
   public loadActionData(actions: Action[], warehouse: WarehouseInventory) {
-    this.actionQueue = actions;
-    this.state.warehouse = JSON.parse(JSON.stringify(warehouse)); // Deep copy
+    // CRITICAL FIX: Deep copy actions to prevents mutation of the external source (React state)
+    // when shift() is called during simulation.
+    this.actionQueue = JSON.parse(JSON.stringify(actions));
+    this.state.warehouse = JSON.parse(JSON.stringify(warehouse)); 
   }
 
   public getObstacles(): Set<string> {
@@ -213,9 +215,6 @@ export class SimulationCore {
     snapshots.push(this.getSnapshot(this.state.warehouse, "Start (Initial)"));
 
     // 2. Iterate Queue to process orders
-    // We need to simulate the flow: START -> MOVES/LIFTS -> PROCESS -> END
-    // We will group actions by Order implicitly by following the queue
-    
     // Temp state for loop
     let currentOrderValid = true;
     let currentOrderDist = 0;
@@ -223,12 +222,11 @@ export class SimulationCore {
     let currentDemand: Demand = {};
     let tempPicked: Demand = {};
     
-    // Helper to log within validation context
     const logVal = (msg: string, type: LogEntry['type']) => {
         validationLogs.push({ msg, type, timestamp: Date.now() });
     };
 
-    // Deep copy action queue to not consume the main one if we reused this instance
+    // Use local queue (already deep copied in loadActionData, but we copy again for safety if re-running)
     const queue = JSON.parse(JSON.stringify(this.actionQueue)) as Action[];
 
     while (queue.length > 0) {

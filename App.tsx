@@ -7,7 +7,7 @@ import { ControlPanel } from './components/ControlPanel';
 import { ValidationView } from './components/ValidationView';
 import { SimulationCore } from './services/simulationLogic';
 import { Action, WarehouseInventory, SimulationState, OrderData } from './types';
-import { SCENARIO_2_CSV, POD_DISTANCES_MAP } from './constants';
+import { SCENARIO_2_CSV } from './constants';
 import clsx from 'clsx';
 
 function App() {
@@ -124,6 +124,7 @@ function App() {
 
       // Reset Engine with new data
       const core = new SimulationCore();
+      // Safe to pass actions directly now because SimulationCore copies them
       core.loadActionData(actions, warehouse);
       engineRef.current = core;
       setUiState(core.state);
@@ -141,6 +142,7 @@ function App() {
     // Reset
     if (engineRef.current) {
         const core = new SimulationCore();
+        // Use copy for safety, though core now handles it
         core.loadActionData(JSON.parse(JSON.stringify(rawActions)), JSON.parse(JSON.stringify(initialWarehouse)));
         engineRef.current = core;
         setUiState(core.state);
@@ -244,7 +246,8 @@ function App() {
 
          {activeTab === 'sim' ? (
              <>
-               <div className="flex-1 h-full relative flex flex-col items-center justify-center bg-[#1e1e23]">
+               {/* Wrapper div for centering and responsive bounds */}
+               <div className="flex-1 h-full relative flex flex-col items-center justify-center bg-[#1e1e23] overflow-hidden">
                   <SimulationCanvas 
                     engine={engineRef.current} 
                     speed={speed} 

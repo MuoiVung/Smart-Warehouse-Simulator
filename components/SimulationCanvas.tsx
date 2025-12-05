@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { SimulationCore, generateArcLayout } from '../services/simulationLogic';
 import {
   GRID_SIZE,
@@ -20,7 +20,31 @@ const LAYOUT = generateArcLayout();
 
 export const SimulationCanvas: React.FC<SimulationCanvasProps> = ({ engine, speed, isPlaying, onUpdate }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const reqIdRef = useRef<number | null>(null);
+  const [scale, setScale] = useState(1);
+
+  // Responsive logic: Scale canvas to fit container
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const handleResize = () => {
+      if (containerRef.current) {
+        const { width, height } = containerRef.current.getBoundingClientRect();
+        const scaleX = width / MAP_WIDTH;
+        const scaleY = height / SCREEN_H;
+        // Use the smaller scale to fit entirely, or 1 if it fits natively
+        const newScale = Math.min(scaleX, scaleY, 1);
+        setScale(newScale);
+      }
+    };
+
+    const observer = new ResizeObserver(handleResize);
+    observer.observe(containerRef.current);
+    handleResize(); // Initial check
+
+    return () => observer.disconnect();
+  }, []);
 
   const draw = (ctx: CanvasRenderingContext2D, sim: SimulationCore) => {
     // Clear
@@ -147,12 +171,19 @@ export const SimulationCanvas: React.FC<SimulationCanvasProps> = ({ engine, spee
   }, [engine]);
 
   return (
-    <div className="relative border-r border-gray-700 h-full bg-[#1e1e23] flex items-center justify-center">
+    <div 
+      ref={containerRef} 
+      className="relative border-r border-gray-700 h-full w-full bg-[#1e1e23] flex items-center justify-center overflow-hidden"
+    >
       <canvas 
         ref={canvasRef} 
         width={MAP_WIDTH} 
         height={SCREEN_H}
-        className="block shadow-lg bg-[#1a1a1e]"
+        className="block shadow-lg bg-[#1a1a1e] origin-center"
+        style={{
+          transform: `scale(${scale})`,
+          transition: 'transform 0.1s linear'
+        }}
       />
     </div>
   );
