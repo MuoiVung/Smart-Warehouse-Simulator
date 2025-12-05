@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
-import { Upload, Play, Square, Layout, CheckCircle, AlertCircle } from 'lucide-react';
+import { Upload, Play, Pause, Square, Layout, RotateCcw, AlertCircle } from 'lucide-react';
 import { SimulationCanvas } from './components/SimulationCanvas';
 import { ControlPanel } from './components/ControlPanel';
 import { ValidationView } from './components/ValidationView';
@@ -104,11 +104,7 @@ function App() {
              actions.push({ t: 'START', id: oid, d: {...ordersGt[oid]} });
              
              // Route parsing
-             // Format: "Pod1 (A:10, T:37), Pod4 (O:9, X:19), ..."
              const routeStr = String(row[2]);
-             
-             // Regex to find segments like "Pod1 (A:10, T:37)"
-             // Matches "Pod" followed by digits, spaces, and parenthesized content
              const podSegments = routeStr.match(/Pod\d+\s*\([^)]+\)/g) || [];
 
              if (podSegments.length === 0) {
@@ -162,7 +158,6 @@ function App() {
 
       // Reset Engine with new data
       const core = new SimulationCore();
-      // Safe to pass actions directly now because SimulationCore copies them
       core.loadActionData(actions, warehouse);
       engineRef.current = core;
       setUiState(core.state);
@@ -171,31 +166,60 @@ function App() {
     reader.readAsBinaryString(file);
   };
 
-  const handlePlayPause = () => {
-    setIsPlaying(!isPlaying);
-  };
-
-  const handleStop = () => {
-    setIsPlaying(false);
-    // Reset
+  const resetSimulation = () => {
     if (engineRef.current) {
         const core = new SimulationCore();
-        // Use copy for safety, though core now handles it
         core.loadActionData(JSON.parse(JSON.stringify(rawActions)), JSON.parse(JSON.stringify(initialWarehouse)));
         engineRef.current = core;
         setUiState(core.state);
     }
   };
 
-  // Called by Canvas every frame or so to sync UI
+  const handlePlayPause = () => {
+    if (uiState?.finished) {
+        // Replay Logic
+        resetSimulation();
+        // Use timeout to ensure state update propagates before starting loop
+        setTimeout(() => setIsPlaying(true), 0);
+    } else {
+        // Toggle
+        setIsPlaying(!isPlaying);
+    }
+  };
+
+  const handleStop = () => {
+    setIsPlaying(false);
+    resetSimulation();
+  };
+
+  // Called by Canvas every frame to sync UI
   const handleSimUpdate = () => {
     if (engineRef.current) {
         setUiState({...engineRef.current.state}); 
-        if (engineRef.current.state.finished) {
-            setIsPlaying(false);
+        if (engineRef.current.state.finished && isPlaying) {
+            setIsPlaying(false); // Stop the loop automatically when finished
         }
     }
   };
+
+  // Determine Button State
+  let mainButtonText = "PLAY";
+  let MainButtonIcon = Play;
+  let mainButtonColor = "bg-green-600 hover:bg-green-500";
+
+  if (uiState?.finished) {
+      mainButtonText = "REPLAY";
+      MainButtonIcon = RotateCcw;
+      mainButtonColor = "bg-blue-600 hover:bg-blue-500";
+  } else if (isPlaying) {
+      mainButtonText = "PAUSE";
+      MainButtonIcon = Pause;
+      mainButtonColor = "bg-yellow-600 hover:bg-yellow-500";
+  } else if (uiState && (uiState.totalDist > 0 || uiState.logs.length > 0)) {
+      mainButtonText = "CONTINUE";
+      MainButtonIcon = Play;
+      mainButtonColor = "bg-green-600 hover:bg-green-500";
+  }
 
   return (
     <div className="h-screen w-screen flex flex-col bg-slate-900 overflow-hidden">
@@ -222,17 +246,13 @@ function App() {
                 <div className="flex items-center gap-2 bg-slate-900 p-1 rounded-lg border border-slate-700">
                    <button 
                       onClick={handlePlayPause}
-                      disabled={uiState?.finished}
                       className={clsx(
-                         "flex items-center gap-2 px-4 py-1.5 rounded text-sm font-bold transition-colors",
-                         isPlaying 
-                            ? "bg-yellow-600 text-white hover:bg-yellow-500" 
-                            : "bg-green-600 text-white hover:bg-green-500",
-                         uiState?.finished && "opacity-50 cursor-not-allowed"
+                         "flex items-center gap-2 px-4 py-1.5 rounded text-sm font-bold transition-colors text-white",
+                         mainButtonColor
                       )}
                    >
-                      <Play size={16} fill={isPlaying ? "white" : "none"} />
-                      {isPlaying ? "PAUSE" : "PLAY"}
+                      <MainButtonIcon size={16} fill={mainButtonText === "PAUSE" ? "white" : "none"} />
+                      {mainButtonText}
                    </button>
                    <button 
                       onClick={handleStop}
@@ -292,15 +312,6 @@ function App() {
                     isPlaying={isPlaying} 
                     onUpdate={handleSimUpdate} 
                   />
-                  
-                  {uiState?.finished && (
-                     <div className="absolute z-30 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-slate-900/90 p-8 rounded-xl border border-green-500 text-center backdrop-blur-sm shadow-2xl">
-                        <CheckCircle size={48} className="text-green-500 mx-auto mb-4" />
-                        <h2 className="text-3xl font-bold text-white mb-2">Simulation Complete</h2>
-                        <p className="text-gray-300">Total Distance: <span className="text-cyan-400 font-mono text-xl">{uiState.totalDist.toFixed(0)}</span></p>
-                        <button onClick={handleStop} className="mt-6 px-6 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded font-bold transition-colors">Reset</button>
-                     </div>
-                  )}
                </div>
                <ControlPanel 
                   state={uiState} 

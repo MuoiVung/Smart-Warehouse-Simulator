@@ -43,7 +43,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ state, speed, setSpe
       {/* --- Stats Section --- */}
       <div className="p-5 border-b border-gray-600">
         <h2 className="text-xl font-bold text-cyan-400 mb-4">
-          Total Dist (Logic): {state.totalDist}
+          Total Distance: {state.totalDist}
         </h2>
         
         <h3 className="text-md font-bold text-cyan-400 mb-2">REMAINING ITEMS</h3>

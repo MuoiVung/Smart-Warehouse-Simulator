@@ -160,6 +160,10 @@ export const SimulationCanvas: React.FC<SimulationCanvasProps> = ({ engine, spee
         const active = engine.update(speed);
         if (active) {
             onUpdate();
+        } else if (engine.state.finished) {
+            // CRITICAL FIX: Ensure parent gets the final 'finished' state
+            // even if update returns false (indicating no movement).
+            onUpdate();
         }
       }
       draw(ctx, engine);
