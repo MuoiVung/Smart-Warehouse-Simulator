@@ -1,0 +1,5 @@
+{
+  "name": "Smart Warehouse Simulator",
+  "description": "A high-performance React application simulating autonomous robots in a warehouse environment. Features visualization, pathfinding, and order fulfillment validation.",
+  "requestFramePermissions": []
+}
