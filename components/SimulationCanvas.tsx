@@ -33,8 +33,8 @@ export const SimulationCanvas: React.FC<SimulationCanvasProps> = ({ engine, spee
       if (containerRef.current) {
         const { width, height } = containerRef.current.getBoundingClientRect();
         // Calculate scale needed to fit the Logical dimensions into the rendered container
-        const scaleX = (width - 20) / MAP_LOGICAL_WIDTH; // -20 for padding
-        const scaleY = (height - 20) / MAP_LOGICAL_HEIGHT;
+        const scaleX = (width - 40) / MAP_LOGICAL_WIDTH; // padding
+        const scaleY = (height - 40) / MAP_LOGICAL_HEIGHT;
         
         // Choose the smaller scale to ensure full visibility without overflow
         const newScale = Math.min(scaleX, scaleY);
@@ -59,24 +59,24 @@ export const SimulationCanvas: React.FC<SimulationCanvasProps> = ({ engine, spee
     const py = PICKING_AREA_COORD.y * GRID_SIZE;
     ctx.fillStyle = COLORS.PICK_AREA; // Yellow
     ctx.beginPath();
-    ctx.roundRect(px, py, GRID_SIZE, GRID_SIZE, 8);
+    ctx.roundRect(px, py, GRID_SIZE, GRID_SIZE, 12);
     ctx.fill();
     ctx.fillStyle = '#000000';
-    ctx.font = "bold 16px Arial";
+    ctx.font = "bold 24px Arial";
     ctx.textAlign = "center";
-    ctx.fillText("Pa", px + GRID_SIZE/2, py + GRID_SIZE/2 + 6);
+    ctx.fillText("Pa", px + GRID_SIZE/2, py + GRID_SIZE/2 + 8);
 
     // Draw Station (Orange Box)
     const sx = STATION_COORD.x * GRID_SIZE;
     const sy = STATION_COORD.y * GRID_SIZE;
     ctx.fillStyle = COLORS.STATION; // Orange
     ctx.beginPath();
-    ctx.roundRect(sx, sy, GRID_SIZE, GRID_SIZE, 8);
+    ctx.roundRect(sx, sy, GRID_SIZE, GRID_SIZE, 12);
     ctx.fill();
     ctx.fillStyle = '#000000';
-    ctx.font = "bold 16px Arial";
+    ctx.font = "bold 24px Arial";
     ctx.textAlign = "center";
-    ctx.fillText("Ps", sx + GRID_SIZE/2, sy + GRID_SIZE/2 + 6);
+    ctx.fillText("Ps", sx + GRID_SIZE/2, sy + GRID_SIZE/2 + 8);
 
     // Draw Pods
     Object.entries(LAYOUT).forEach(([idStr, coord]) => {
@@ -85,46 +85,46 @@ export const SimulationCanvas: React.FC<SimulationCanvasProps> = ({ engine, spee
       const cy = coord.y * GRID_SIZE;
       const isCarried = sim.state.carryingPod === pid;
 
-      const rectX = cx + 2;
-      const rectY = cy + 2;
-      const rectSize = GRID_SIZE - 4;
+      const rectX = cx + 4;
+      const rectY = cy + 4;
+      const rectSize = GRID_SIZE - 8;
 
       if (isCarried) {
          ctx.fillStyle = COLORS.POD_LIFTED + "90"; // Slightly transparent
          ctx.beginPath();
-         ctx.roundRect(rectX, rectY, rectSize, rectSize, 8);
+         ctx.roundRect(rectX, rectY, rectSize, rectSize, 12);
          ctx.fill();
       } else {
         ctx.fillStyle = COLORS.POD_NORMAL; // Blue
         ctx.beginPath();
-        ctx.roundRect(rectX, rectY, rectSize, rectSize, 8);
+        ctx.roundRect(rectX, rectY, rectSize, rectSize, 12);
         ctx.fill();
         ctx.strokeStyle = COLORS.POD_BORDER;
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 3;
         ctx.stroke();
       }
 
-      // Pod Label (Top Center now, clearer)
+      // Pod Label (Top Center)
       ctx.fillStyle = COLORS.TEXT_WHITE;
       ctx.textAlign = "center";
-      ctx.font = "bold 20px Arial"; 
-      ctx.fillText(`${pid}`, cx + GRID_SIZE/2, cy + 22);
+      ctx.font = "bold 32px Arial"; 
+      ctx.fillText(`${pid}`, cx + GRID_SIZE/2, cy + 35);
 
       // Inventory Preview
       const inv = sim.state.warehouse[pid] || {};
-      let yOffset = 42;
+      let yOffset = 60;
       let count = 0;
       for (const [item, qty] of Object.entries(inv)) {
-        if (count >= 2) { // Show up to 2 items clearly in this grid size
+        if (count >= 3) { // Show up to 3 items now
           ctx.fillStyle = "#cccccc";
-          ctx.font = "bold 12px Arial";
-          ctx.fillText("...", cx + GRID_SIZE/2, cy + yOffset);
+          ctx.font = "bold 14px Arial";
+          ctx.fillText("...", cx + GRID_SIZE/2, cy + yOffset - 5);
           break;
         }
         ctx.fillStyle = "#e2e8f0";
-        ctx.font = "bold 12px Arial";
+        ctx.font = "bold 18px Arial";
         ctx.fillText(`${item}:${qty}`, cx + GRID_SIZE/2, cy + yOffset);
-        yOffset += 14;
+        yOffset += 20;
         count++;
       }
     });
@@ -134,14 +134,14 @@ export const SimulationCanvas: React.FC<SimulationCanvasProps> = ({ engine, spee
     const ry = sim.pixelPos.y;
     ctx.fillStyle = COLORS.ROBOT;
     ctx.beginPath();
-    ctx.arc(rx + GRID_SIZE/2, ry + GRID_SIZE/2, 18, 0, 2 * Math.PI);
+    ctx.arc(rx + GRID_SIZE/2, ry + GRID_SIZE/2, 25, 0, 2 * Math.PI); // Larger robot
     ctx.fill();
     
     // Robot glow/stroke
     ctx.shadowColor = COLORS.ROBOT;
-    ctx.shadowBlur = 15;
+    ctx.shadowBlur = 20;
     ctx.strokeStyle = "white";
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 4;
     ctx.stroke();
     ctx.shadowBlur = 0;
   };

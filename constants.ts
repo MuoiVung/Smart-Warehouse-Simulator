@@ -5,13 +5,13 @@ export const SCREEN_W = 1600;
 export const SCREEN_H = 760; // Height of the simulation container
 
 // Logical Dimensions (Actual resolution of the simulation map)
-export const MAP_LOGICAL_WIDTH = 1400;
-export const MAP_LOGICAL_HEIGHT = 900;
+export const MAP_LOGICAL_WIDTH = 1600;
+export const MAP_LOGICAL_HEIGHT = 1000;
 
 export const UI_PANEL_WIDTH = 400;
 
 // Grid Configuration
-export const GRID_SIZE = 70; // Good size for grid layout
+export const GRID_SIZE = 110; // Significantly larger for visibility
 
 // Calculate Grid Dimensions based on LOGICAL size
 export const COLS = Math.floor(MAP_LOGICAL_WIDTH / GRID_SIZE); 
