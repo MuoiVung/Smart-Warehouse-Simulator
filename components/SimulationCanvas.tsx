@@ -2,8 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { SimulationCore, generateArcLayout } from '../services/simulationLogic';
 import {
   GRID_SIZE,
-  MAP_WIDTH,
-  SCREEN_H,
+  MAP_LOGICAL_WIDTH,
+  MAP_LOGICAL_HEIGHT,
   COLORS,
   STATION_COORD,
   PICKING_AREA_COORD
@@ -22,7 +22,7 @@ export const SimulationCanvas: React.FC<SimulationCanvasProps> = ({ engine, spee
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const reqIdRef = useRef<number | null>(null);
-  const [scale, setScale] = useState(1);
+  const [scale, setScale] = useState(0.5); // Default scale
 
   // Responsive logic: Scale canvas to fit container
   useEffect(() => {
@@ -31,10 +31,12 @@ export const SimulationCanvas: React.FC<SimulationCanvasProps> = ({ engine, spee
     const handleResize = () => {
       if (containerRef.current) {
         const { width, height } = containerRef.current.getBoundingClientRect();
-        const scaleX = width / MAP_WIDTH;
-        const scaleY = height / SCREEN_H;
-        // Use the smaller scale to fit entirely, or 1 if it fits natively
-        const newScale = Math.min(scaleX, scaleY, 1);
+        // Calculate scale needed to fit the Logical dimensions into the rendered container
+        const scaleX = (width - 20) / MAP_LOGICAL_WIDTH; // -20 for padding
+        const scaleY = (height - 20) / MAP_LOGICAL_HEIGHT;
+        
+        // Choose the smaller scale to ensure full visibility without overflow
+        const newScale = Math.min(scaleX, scaleY);
         setScale(newScale);
       }
     };
@@ -47,28 +49,29 @@ export const SimulationCanvas: React.FC<SimulationCanvasProps> = ({ engine, spee
   }, []);
 
   const draw = (ctx: CanvasRenderingContext2D, sim: SimulationCore) => {
-    // Clear
+    // Clear whole map
     ctx.fillStyle = COLORS.BG;
-    ctx.fillRect(0, 0, MAP_WIDTH, SCREEN_H);
+    ctx.fillRect(0, 0, MAP_LOGICAL_WIDTH, MAP_LOGICAL_HEIGHT);
 
     // Draw Station
     const sx = STATION_COORD.x * GRID_SIZE;
     const sy = STATION_COORD.y * GRID_SIZE;
     ctx.fillStyle = COLORS.STATION;
     ctx.beginPath();
-    ctx.roundRect(sx, sy, GRID_SIZE, GRID_SIZE, 6);
+    ctx.roundRect(sx, sy, GRID_SIZE, GRID_SIZE, 8);
     ctx.fill();
     ctx.fillStyle = COLORS.TEXT_WHITE;
-    ctx.font = "bold 11px Arial";
-    ctx.fillText("STATION", sx + 2, sy + 20);
+    ctx.font = "bold 18px Arial"; // Larger
+    ctx.textAlign = "center";
+    ctx.fillText("STATION", sx + GRID_SIZE/2, sy + 45);
 
     // Draw Picking Area
     const px = PICKING_AREA_COORD.x * GRID_SIZE;
     const py = PICKING_AREA_COORD.y * GRID_SIZE;
     ctx.strokeStyle = COLORS.PICK_AREA;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 4;
     ctx.beginPath();
-    ctx.roundRect(px, py, GRID_SIZE, GRID_SIZE, 6);
+    ctx.roundRect(px, py, GRID_SIZE, GRID_SIZE, 8);
     ctx.stroke();
 
     // Draw Pods
@@ -83,40 +86,41 @@ export const SimulationCanvas: React.FC<SimulationCanvasProps> = ({ engine, spee
       const rectSize = GRID_SIZE - 4;
 
       if (isCarried) {
-         ctx.fillStyle = COLORS.POD_LIFTED + "80"; // Hex with alpha
+         ctx.fillStyle = COLORS.POD_LIFTED + "90"; // Slightly transparent
          ctx.beginPath();
-         ctx.roundRect(rectX, rectY, rectSize, rectSize, 4);
+         ctx.roundRect(rectX, rectY, rectSize, rectSize, 8);
          ctx.fill();
       } else {
         ctx.fillStyle = COLORS.POD_NORMAL;
         ctx.beginPath();
-        ctx.roundRect(rectX, rectY, rectSize, rectSize, 4);
+        ctx.roundRect(rectX, rectY, rectSize, rectSize, 8);
         ctx.fill();
         ctx.strokeStyle = COLORS.POD_BORDER;
-        ctx.lineWidth = 1;
+        ctx.lineWidth = 2;
         ctx.stroke();
       }
 
-      // Pod Label
+      // Pod Label (Top Left)
       ctx.fillStyle = COLORS.TEXT_WHITE;
-      ctx.font = "bold 12px Arial";
-      ctx.fillText(`P${pid}`, cx + 4, cy + 14);
+      ctx.textAlign = "left";
+      ctx.font = "bold 20px Arial"; // Big label
+      ctx.fillText(`P${pid}`, cx + 8, cy + 24);
 
-      // Inventory Preview
+      // Inventory Preview (Larger text, more lines)
       const inv = sim.state.warehouse[pid] || {};
-      let yOffset = 24;
+      let yOffset = 45;
       let count = 0;
       for (const [item, qty] of Object.entries(inv)) {
-        if (count >= 2) {
-          ctx.fillStyle = "#c8c8c8";
-          ctx.font = "9px Arial";
-          ctx.fillText("...", cx + 4, cy + yOffset);
+        if (count >= 3) { // Show up to 3 items
+          ctx.fillStyle = "#cccccc";
+          ctx.font = "bold 12px Arial";
+          ctx.fillText("...", cx + 8, cy + yOffset - 3);
           break;
         }
-        ctx.fillStyle = "#dcdee0";
-        ctx.font = "9px Arial";
-        ctx.fillText(`${item}:${qty}`, cx + 4, cy + yOffset);
-        yOffset += 10;
+        ctx.fillStyle = "#e2e8f0";
+        ctx.font = "bold 13px Arial";
+        ctx.fillText(`${item}:${qty}`, cx + 8, cy + yOffset);
+        yOffset += 15;
         count++;
       }
     });
@@ -126,11 +130,15 @@ export const SimulationCanvas: React.FC<SimulationCanvasProps> = ({ engine, spee
     const ry = sim.pixelPos.y;
     ctx.fillStyle = COLORS.ROBOT;
     ctx.beginPath();
-    ctx.arc(rx + GRID_SIZE/2, ry + GRID_SIZE/2, 8, 0, 2 * Math.PI);
+    // Larger robot circle
+    ctx.arc(rx + GRID_SIZE/2, ry + GRID_SIZE/2, 20, 0, 2 * Math.PI);
     ctx.fill();
-    // Robot glow
+    
+    // Robot glow/stroke
     ctx.shadowColor = COLORS.ROBOT;
-    ctx.shadowBlur = 10;
+    ctx.shadowBlur = 15;
+    ctx.strokeStyle = "white";
+    ctx.lineWidth = 3;
     ctx.stroke();
     ctx.shadowBlur = 0;
   };
@@ -177,11 +185,12 @@ export const SimulationCanvas: React.FC<SimulationCanvasProps> = ({ engine, spee
     >
       <canvas 
         ref={canvasRef} 
-        width={MAP_WIDTH} 
-        height={SCREEN_H}
-        className="block shadow-lg bg-[#1a1a1e] origin-center"
+        width={MAP_LOGICAL_WIDTH} 
+        height={MAP_LOGICAL_HEIGHT}
+        className="block shadow-2xl bg-[#1a1a1e] origin-center rounded-lg"
         style={{
           transform: `scale(${scale})`,
+          // Smooth scaling
           transition: 'transform 0.1s linear'
         }}
       />

@@ -1,35 +1,40 @@
 import { Coord } from './types';
 
-// Dimensions
+// Display Dimensions (View container size)
 export const SCREEN_W = 1600;
-// Reduced height to account for header (64px) + tabs (40px) + margins
-export const SCREEN_H = 760; 
-// Reduced grid size (38px) allows ~20 rows (760/38), giving enough vertical margin for the Arc layout
-export const GRID_SIZE = 38; 
+export const SCREEN_H = 760; // Height of the simulation container
+
+// Logical Dimensions (Actual resolution of the simulation map)
+// Optimized to create a tighter bounding box around the arc, increasing the effective zoom level
+export const MAP_LOGICAL_WIDTH = 2000;
+export const MAP_LOGICAL_HEIGHT = 1440;
 
 export const UI_PANEL_WIDTH = 400;
-export const MAP_WIDTH = SCREEN_W - UI_PANEL_WIDTH;
 
-export const COLS = Math.floor(MAP_WIDTH / GRID_SIZE);
-export const ROWS = Math.floor(SCREEN_H / GRID_SIZE);
+// Grid Configuration
+export const GRID_SIZE = 80; // Significantly larger pods for readability
+
+// Calculate Grid Dimensions based on LOGICAL size
+export const COLS = Math.floor(MAP_LOGICAL_WIDTH / GRID_SIZE); // ~25 cols
+export const ROWS = Math.floor(MAP_LOGICAL_HEIGHT / GRID_SIZE); // ~18 rows
 
 // Locations
-// Station placed on the right side
-export const STATION_GRID_X = COLS - 4; 
+// Station placed on the right side, vertically centered
+export const STATION_GRID_X = COLS - 3; 
 export const STATION_GRID_Y = Math.floor(ROWS / 2);
 export const STATION_COORD: Coord = { x: STATION_GRID_X, y: STATION_GRID_Y };
 export const PICKING_AREA_COORD: Coord = { x: STATION_GRID_X - 1, y: STATION_GRID_Y };
 
-// Colors (Hex equivalents of the RGB tuples provided)
+// Colors
 export const COLORS = {
-  BG: '#1e1e23', // (30, 30, 35)
-  PANEL_BG: '#2d2d32', // (45, 45, 50)
-  POD_NORMAL: '#00796b', // (0, 121, 107)
-  POD_LIFTED: '#ffb300', // (255, 179, 0)
-  POD_BORDER: '#c8c8c8', // (200, 200, 200)
-  STATION: '#e91e63', // (233, 30, 99)
-  PICK_AREA: '#2196f3', // (33, 150, 243)
-  ROBOT: '#64ffda', // (100, 255, 218)
+  BG: '#1e1e23',
+  PANEL_BG: '#2d2d32',
+  POD_NORMAL: '#00796b',
+  POD_LIFTED: '#ffb300',
+  POD_BORDER: '#ffffff',
+  STATION: '#e91e63',
+  PICK_AREA: '#2196f3',
+  ROBOT: '#64ffda',
   TEXT_WHITE: '#f0f0f0',
   TEXT_HIGHLIGHT: '#00ffff',
   TEXT_ORANGE: '#ffa500',

@@ -5,7 +5,8 @@ import {
   PICKING_AREA_COORD,
   POD_DISTANCES_MAP,
   SCENARIO_2_CSV,
-  GRID_SIZE
+  GRID_SIZE,
+  MAP_LOGICAL_WIDTH
 } from '../constants';
 import {
   Action,
@@ -25,45 +26,61 @@ import Papa from 'papaparse';
 
 export function generateArcLayout(): Record<number, Coord> {
   const layout: Record<number, Coord> = {};
-  const pods = Array.from({ length: 24 }, (_, i) => i + 1);
   const centerX = STATION_COORD.x;
   const centerY = STATION_COORD.y;
 
-  const layersConfig = [5, 7, 12];
-  let currentPodIdx = 0;
-  const startAngleDeg = 110;
-  const endAngleDeg = 250;
-  let currentRadius = 2;
+  // Compact rings to save space while maintaining order.
+  // Radii: 3, 5, 7, 9, 11, 13 (Grid Units)
+  const groups = [
+    { pods: [1], radius: 3 },                        // Tier 1: Dist 22
+    { pods: [2, 3, 4, 5, 6], radius: 5 },            // Tier 2: Dist 26
+    { pods: [12], radius: 7 },                       // Tier 3: Dist 30
+    { pods: [7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18], radius: 9 }, // Tier 4: Dist 34
+    { pods: [24], radius: 11 },                      // Tier 5: Dist 42
+    { pods: [19, 20, 21, 22, 23], radius: 13 }       // Tier 6: Dist 46
+  ];
 
-  for (const numPodsInLayer of layersConfig) {
-    currentRadius += 2;
-    const angleStep = numPodsInLayer > 1
-      ? (endAngleDeg - startAngleDeg) / (numPodsInLayer - 1)
-      : 0;
+  // Narrower angle spread (140 to 220) to reduce vertical height requirements,
+  // allowing the map to be scaled larger on landscape screens.
+  const startAngleDeg = 140;
+  const endAngleDeg = 220;
 
-    for (let i = 0; i < numPodsInLayer; i++) {
-      if (currentPodIdx >= pods.length) break;
+  groups.forEach(group => {
+      const count = group.pods.length;
+      const radius = group.radius;
+      
+      const angleStep = count > 1 
+          ? (endAngleDeg - startAngleDeg) / (count - 1)
+          : 0;
 
-      const angleRad = (startAngleDeg + i * angleStep) * (Math.PI / 180);
-      let gx = Math.floor(centerX + currentRadius * Math.cos(angleRad));
-      let gy = Math.floor(centerY + currentRadius * Math.sin(angleRad));
+      group.pods.forEach((pid, idx) => {
+          // Angle in degrees
+          const angleDeg = count > 1 
+              ? startAngleDeg + idx * angleStep 
+              : 180; // Center if single
+          
+          const angleRad = angleDeg * (Math.PI / 180);
 
-      gx = Math.max(0, Math.min(gx, COLS - 1));
-      gy = Math.max(0, Math.min(gy, ROWS - 1));
+          let gx = Math.floor(centerX + radius * Math.cos(angleRad));
+          let gy = Math.floor(centerY + radius * Math.sin(angleRad));
 
-      // Avoid collisions with existing pods or station
-      while (
-        Object.values(layout).some(c => c.x === gx && c.y === gy) ||
-        (gx === PICKING_AREA_COORD.x && gy === PICKING_AREA_COORD.y) ||
-        (gx === STATION_COORD.x && gy === STATION_COORD.y)
-      ) {
-        gx -= 1;
-      }
+          // Bounds check
+          gx = Math.max(0, Math.min(gx, COLS - 1));
+          gy = Math.max(0, Math.min(gy, ROWS - 1));
 
-      layout[pods[currentPodIdx]] = { x: gx, y: gy };
-      currentPodIdx++;
-    }
-  }
+          // Simple collision check to avoid exact overlap
+          while (
+            Object.values(layout).some(c => c.x === gx && c.y === gy) ||
+            (gx === PICKING_AREA_COORD.x && gy === PICKING_AREA_COORD.y) ||
+            (gx === STATION_COORD.x && gy === STATION_COORD.y)
+          ) {
+            gx -= 1; 
+          }
+
+          layout[pid] = { x: gx, y: gy };
+      });
+  });
+
   return layout;
 }
 
@@ -320,7 +337,7 @@ export class SimulationCore {
       const dx = targetPx - this.pixelPos.x;
       const dy = targetPy - this.pixelPos.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      const baseSpeed = 5;
+      const baseSpeed = 8; // Increased base speed since grid is larger
       const currentSpeed = baseSpeed * speedMultiplier;
 
       if (dist > currentSpeed) {
