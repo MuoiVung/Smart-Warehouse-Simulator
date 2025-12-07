@@ -1,4 +1,5 @@
 
+
 import {
   COLS,
   ROWS,
@@ -19,7 +20,9 @@ import {
   ValidationResult,
   WarehouseInventory,
   ReportOverviewRow,
-  InventorySnapshotRow
+  InventorySnapshotRow,
+  AllocationAnalysis,
+  ConstraintViolation
 } from '../types';
 import Papa from 'papaparse';
 
@@ -123,6 +126,57 @@ export function findPathBFS(start: Coord, target: Coord, obstacles: Set<string>)
     curr = cameFrom[k];
   }
   return path.reverse();
+}
+
+// --- Constraint Validation ---
+
+export function checkAllocationConstraints(warehouse: WarehouseInventory): AllocationAnalysis {
+  const violations: ConstraintViolation[] = [];
+  const productPodCounts: Record<string, number> = {};
+
+  for (const pidStr in warehouse) {
+    const pid = parseInt(pidStr);
+    const items = warehouse[pid];
+    const itemKeys = Object.keys(items);
+
+    // Rule 1: Max 3 distinct products per pod
+    if (itemKeys.length > 3) {
+      violations.push({
+        type: 'POD_CAPACITY',
+        message: `Pod ${pid} has ${itemKeys.length} items (Max 3). Items: ${itemKeys.join(', ')}`
+      });
+    }
+
+    for (const item of itemKeys) {
+      const qty = items[item];
+
+      // Rule 3: Max 100 units per product per pod
+      if (qty > 100) {
+        violations.push({
+          type: 'UNIT_CAPACITY',
+          message: `Pod ${pid} has ${qty} units of '${item}' (Max 100).`
+        });
+      }
+
+      // Track for Rule 2
+      productPodCounts[item] = (productPodCounts[item] || 0) + 1;
+    }
+  }
+
+  // Rule 2: One product can be placed on up to three pods
+  for (const [item, count] of Object.entries(productPodCounts)) {
+    if (count > 3) {
+      violations.push({
+        type: 'PRODUCT_DISTRIBUTION',
+        message: `Product '${item}' is stored in ${count} pods (Max 3).`
+      });
+    }
+  }
+
+  return {
+    isValid: violations.length === 0,
+    violations
+  };
 }
 
 // --- Logic Core ---

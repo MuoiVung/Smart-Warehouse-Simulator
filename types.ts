@@ -1,4 +1,5 @@
 
+
 export interface Coord {
   x: number;
   y: number;
@@ -62,4 +63,14 @@ export interface ValidationResult {
   isValid: boolean;
   reportOverview: ReportOverviewRow[];
   inventorySnapshots: InventorySnapshotRow[];
+}
+
+export interface ConstraintViolation {
+  type: 'POD_CAPACITY' | 'PRODUCT_DISTRIBUTION' | 'UNIT_CAPACITY';
+  message: string;
+}
+
+export interface AllocationAnalysis {
+  isValid: boolean;
+  violations: ConstraintViolation[];
 }
