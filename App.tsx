@@ -69,9 +69,15 @@ function App() {
             const itemsStr = String(row[2]);
             if (itemsStr && itemsStr.toLowerCase() !== 'nan') {
               warehouse[pid] = {};
-              itemsStr.split(',').forEach(item => {
-                const i = item.trim();
-                if (i) warehouse[pid][i] = 100;
+              itemsStr.split(',').forEach(itemPart => {
+                const parts = itemPart.trim().split(':');
+                const itemName = parts[0].trim();
+                // If quantity is provided (e.g. "A:120"), use it; otherwise default to 100
+                const qty = parts.length > 1 ? parseInt(parts[1]) : 100;
+                
+                if (itemName) {
+                   warehouse[pid][itemName] = isNaN(qty) ? 100 : qty;
+                }
               });
             }
           }

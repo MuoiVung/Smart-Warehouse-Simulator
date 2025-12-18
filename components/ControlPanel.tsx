@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef } from 'react';
 import { SimulationState, LogEntry } from '../types';
 import { UI_PANEL_WIDTH, COLORS } from '../constants';
@@ -24,10 +25,10 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ state, speed, setSpe
       className="bg-[#2d2d32] flex flex-col h-full border-l border-gray-700" 
       style={{ width: UI_PANEL_WIDTH }}
     >
-      {/* --- Slider Section --- */}
+      {/* --- Slider Section --- (Fixed Height: 96px) */}
       {!isValidationMode && (
-        <div className="p-5 border-b border-gray-600">
-          <label className="block text-white mb-2 font-bold">Speed: {speed.toFixed(1)}x</label>
+        <div className="h-24 p-5 border-b border-gray-600 flex flex-col justify-center shrink-0">
+          <label className="block text-white mb-2 font-bold text-sm">Speed: {speed.toFixed(1)}x</label>
           <input 
             type="range" 
             min="1" 
@@ -40,41 +41,61 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ state, speed, setSpe
         </div>
       )}
 
-      {/* --- Stats Section --- */}
-      <div className="p-5 border-b border-gray-600">
-        <h2 className="text-xl font-bold text-cyan-400 mb-4">
-          Total Distance: {state.totalDist}
-        </h2>
+      {/* --- Stats & Remaining Items Section --- (Fixed Height: 320px) */}
+      <div className="h-[320px] p-5 border-b border-gray-600 shrink-0 flex flex-col overflow-hidden">
+        <div className="mb-6">
+          <h2 className="text-xl font-bold text-cyan-400 uppercase tracking-wide">
+            Total Distance: {state.totalDist}
+          </h2>
+        </div>
         
-        <h3 className="text-md font-bold text-cyan-400 mb-2">REMAINING ITEMS</h3>
-        <div className="grid grid-cols-3 gap-2 text-sm overflow-y-auto max-h-[150px]">
-          {Object.entries(state.currDemand).map(([item, qty]) => (
-            <div key={item} className={clsx("font-mono", (qty as number) < 10 ? "text-orange-400" : "text-white")}>
-              {item}: {qty as number}
-            </div>
-          ))}
-          {Object.keys(state.currDemand).length === 0 && (
-            <span className="text-gray-500 col-span-3">No active demand</span>
-          )}
+        <h3 className="text-xs font-bold text-cyan-400 mb-2 uppercase tracking-widest">REMAINING ITEMS</h3>
+        <div className="flex-1 overflow-y-auto bg-black/20 rounded border border-gray-700/30 p-3">
+          <div className="grid grid-cols-3 gap-x-4 gap-y-2 text-[13px]">
+            {Object.entries(state.currDemand).map(([item, qty]) => (
+              <div key={item} className="flex gap-2 font-mono">
+                <span className="text-gray-400">{item}:</span>
+                <span className={clsx("font-bold", (qty as number) < 10 ? "text-orange-400" : "text-white")}>
+                  {qty as number}
+                </span>
+              </div>
+            ))}
+            {Object.keys(state.currDemand).length === 0 && (
+              <div className="text-gray-500 italic col-span-3 text-center py-4">No active demand</div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* --- Logs Section --- */}
-      <div className="flex-1 flex flex-col min-h-0">
-         <div className="p-3 bg-gray-800 border-b border-gray-700">
-            <span className="text-cyan-400 font-bold">SYSTEM LOGS</span>
+      {/* --- Logs Section --- (Expands to fill exactly the remaining space) */}
+      <div className="flex-1 flex flex-col min-h-0 bg-[#1a1a1e]">
+         <div className="p-3 bg-gray-800/50 border-b border-gray-700 shrink-0">
+            <span className="text-cyan-400 font-bold text-xs uppercase tracking-widest">SYSTEM LOGS</span>
          </div>
-         <div className="flex-1 overflow-y-auto p-3 font-mono text-sm space-y-1 bg-[#1e1e23]">
+         <div className="flex-1 overflow-y-auto p-4 font-mono text-[11px] leading-relaxed space-y-1 bg-black/10">
             {state.logs.map((log, idx) => {
-               let colorClass = "text-gray-200";
-               if (log.type === 'HEAD') colorClass = "text-yellow-300 font-bold";
-               if (log.type === 'SUCCESS') colorClass = "text-green-400";
-               if (log.type === 'ACTION') colorClass = "text-blue-300";
-               if (log.type === 'ERROR') colorClass = "text-red-500 font-bold";
+               let colorClass = "text-gray-300";
+               let prefix = "";
+               if (log.type === 'HEAD') {
+                 colorClass = "text-yellow-300 font-bold mt-1";
+                 prefix = "► ";
+               }
+               if (log.type === 'SUCCESS') {
+                 colorClass = "text-green-400";
+                 prefix = "✓ ";
+               }
+               if (log.type === 'ACTION') {
+                 colorClass = "text-blue-300";
+                 prefix = "• ";
+               }
+               if (log.type === 'ERROR') {
+                 colorClass = "text-red-500 font-bold";
+                 prefix = "ERR: ";
+               }
                
                return (
-                 <div key={idx} className={colorClass}>
-                   {log.msg}
+                 <div key={idx} className={clsx("break-words", colorClass)}>
+                   {prefix}{log.msg}
                  </div>
                );
             })}
